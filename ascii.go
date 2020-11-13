@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"log"
 	"os"
+	"time"
 
 	_ "image/jpeg"
 	_ "image/png"
@@ -39,6 +40,12 @@ func Load(filePath string) (*Img, error) {
 }
 
 func (img *Img) Process(w, h int) error {
+	start := time.Now()
+	defer func() {
+		res := time.Since(start)
+		log.Printf("Processing took: %v", res)
+	}()
+
 	bounds := img.src.Bounds()
 
 	res := ""
@@ -90,17 +97,16 @@ func downsample(img *image.Image, x1, x2, y1, y2 int) color.Color {
 			count++
 			r, g, b, a := (*img).At(col, row).RGBA()
 			sumR, sumG, sumB, sumA = sumR+uint32(uint8(r)), sumG+uint32(uint8(g)), sumB+uint32(uint8(b)), sumA+uint32(uint8(a))
-			//sumR, sumG, sumB, sumA = sumR+r, sumG+g, sumB+b, sumA+a
 		}
 	}
 	res := color.RGBA{uint8(sumR / count), uint8(sumG / count), uint8(sumB / count), uint8(sumA / count)}
 
-	log.Printf("downsampling is done for {%d,%d}-{%d,%d}, count=%d\n", x1, y1, x2, y2, count)
-	log.Printf("R=%d, G=%d, B=%d, A=%d -> %+v\n", sumR, sumG, sumB, sumA, res)
-
-	r, g, b, a := res.RGBA()
-	log.Printf("RGBA() -> %v,%v,%v,%v\n", r, g, b, a)
-	log.Printf("RGBA -> %v,%v,%v,%v\n", res.R, res.G, res.B, res.A)
+	//log.Printf("downsampling is done for {%d,%d}-{%d,%d}, count=%d\n", x1, y1, x2, y2, count)
+	//log.Printf("R=%d, G=%d, B=%d, A=%d -> %+v\n", sumR, sumG, sumB, sumA, res)
+	//
+	//r, g, b, a := res.RGBA()
+	//log.Printf("RGBA() -> %v,%v,%v,%v\n", r, g, b, a)
+	//log.Printf("RGBA -> %v,%v,%v,%v\n", res.R, res.G, res.B, res.A)
 
 	return res
 }
@@ -111,13 +117,8 @@ func colorToAscii(c color.Color) byte {
 	charRange := int(charMax - charMin)
 
 	r, g, b, _ := c.RGBA()
-	tmp := (uint32(uint8(r)) + uint32(uint8(g)) + uint32(uint8(b)))
-	s := fmt.Sprintf("tmp=%d ", tmp)
+	tmp := uint32(uint8(r)) + uint32(uint8(g)) + uint32(uint8(b))
 	tmp /= uint32(charRange)
-	s += fmt.Sprintf("tmp/charRange=%d ", tmp)
 	val := tmp%uint32(charRange) + uint32(charMin)
-	s += fmt.Sprintf("val=%d\n", val)
-
-	log.Printf("%s\n------\n", s)
 	return byte(val)
 }

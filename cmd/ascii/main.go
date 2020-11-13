@@ -13,7 +13,7 @@ func main() {
 	outFile := flag.String("out", "ascii.txt", "output txt file")
 	w := flag.Int("w", 80, "output pic width in chars")
 	h := flag.Int("h", 50, "output pic height in chars")
-	debug := flag.Bool("debug", false, "debug flag")
+	p := flag.Bool("p", false, "print the result to console or not")
 	flag.Parse()
 
 	img, err := ascii.Load(*inFile)
@@ -34,7 +34,7 @@ func main() {
 		panic(err)
 	}
 
-	if *debug {
+	if *p {
 		fmt.Printf("%s\n", img.Result())
 	}
 }
