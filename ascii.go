@@ -13,11 +13,13 @@ import (
 	_ "image/png"
 )
 
+// Img contains original binary image and its ascii representation
 type Img struct {
 	src image.Image
 	asc string
 }
 
+// Load loads image from file and returns new Img object
 func Load(filePath string) (*Img, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -40,6 +42,7 @@ func Load(filePath string) (*Img, error) {
 	return &Img{src: img}, nil
 }
 
+// Process converts image from source to ascii representation (w - ascii width, h - ascii height)
 func (img *Img) Process(w, h int) error {
 	// measure execution time
 	start := time.Now()
@@ -93,6 +96,7 @@ func delta(max, steps int) float64 {
 	return res
 }
 
+// WriteToFile writes ascii representation to the output file
 func (img *Img) WriteToFile(filePath string) error {
 	file, err := os.Create(filePath)
 	if err != nil {
@@ -114,10 +118,12 @@ func (img *Img) WriteToFile(filePath string) error {
 	return nil
 }
 
+// Result return ascii representation
 func (img *Img) Result() string {
 	return img.asc
 }
 
+// downsample computes new colored point from the image area (x1,y1)-(x2,y2): an average of the original layers (R,G,B,A)
 func downsample(img *image.Image, x1, x2, y1, y2 int) color.Color {
 	sumR, sumG, sumB, sumA := uint32(0), uint32(0), uint32(0), uint32(0)
 	count := uint32(0)
@@ -141,6 +147,7 @@ func downsample(img *image.Image, x1, x2, y1, y2 int) color.Color {
 	return res
 }
 
+// colorToAscii converts colored point to ascii character
 func colorToAscii(c color.Color) byte {
 	charMin := byte(' ')
 	charMax := byte('~')
