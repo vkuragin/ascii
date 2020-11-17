@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"log"
+	"math"
 	"os"
 	"time"
 
@@ -40,27 +41,56 @@ func Load(filePath string) (*Img, error) {
 }
 
 func (img *Img) Process(w, h int) error {
+	// measure execution time
 	start := time.Now()
 	defer func() {
 		res := time.Since(start)
 		log.Printf("Processing took: %v", res)
 	}()
 
+	// validate bounds
 	bounds := img.src.Bounds()
+	if w > bounds.Max.X {
+		log.Printf("W exceds image bounds: %d -> %d\n", w, bounds.Max.X)
+		w = bounds.Max.X
+	}
+	if h > bounds.Max.Y {
+		log.Printf("H exceds image bounds: %d -> %d\n", h, bounds.Max.Y)
+		h = bounds.Max.Y
+	}
 
+	// process
 	res := ""
-	for i := 0; i < bounds.Max.Y; i += bounds.Max.Y / h {
-		c := 0
-		for j := 0; j < bounds.Max.X; j += bounds.Max.X / w {
-			point := downsample(&img.src, j, j+bounds.Max.X/w, i, i+bounds.Max.Y/h)
+	dx, dy := delta(bounds.Max.X, w), delta(bounds.Max.Y, h)
+	y, maxY, maxX := float64(0), float64(bounds.Max.Y), float64(bounds.Max.X)
+	for y < maxY {
+		nextY := math.Min(math.Round(y+dy), maxY)
+		c, x := 0, float64(0)
+
+		for x < maxX {
+			nextX := math.Min(math.Round(x+dx), maxX)
+			if x >= nextX || y >= nextY {
+				log.Printf("empty set, skipping: x=%f, x2=%f, y=%f, y2=%f, maxX=%f, maxY=%f\n", x, nextX, y, nextY, maxX, maxY)
+				x = nextX
+				continue
+			}
+			point := downsample(&img.src, int(x), int(nextX), int(y), int(nextY))
 			res += fmt.Sprintf("%c", colorToAscii(point))
 			c++
+			x = nextX
 		}
+		y = nextY
 		res += fmt.Sprintf(" | %d\n", c)
-
 	}
+
 	img.asc = res
 	return nil
+}
+
+func delta(max, steps int) float64 {
+	res := float64(max) / float64(steps)
+	log.Printf("delta: %d / %d = %f\n", max, steps, res)
+	return res
 }
 
 func (img *Img) WriteToFile(filePath string) error {
