@@ -1,7 +1,6 @@
 package ascii
 
 import (
-	"fmt"
 	"image"
 	"image/color"
 	"log"
@@ -16,7 +15,7 @@ import (
 // Img contains original binary image and its ascii representation
 type Img struct {
 	src image.Image
-	asc string
+	asc []byte
 }
 
 // Load loads image from file and returns new Img object
@@ -63,13 +62,12 @@ func (img *Img) Process(w, h int) error {
 	}
 
 	// process
-	res := ""
 	dx, dy := delta(bounds.Max.X, w), delta(bounds.Max.Y, h)
-	y, maxY, maxX := float64(0), float64(bounds.Max.Y), float64(bounds.Max.X)
+	x, y, maxY, maxX := float64(0), float64(0), float64(bounds.Max.Y), float64(bounds.Max.X)
+
 	for y < maxY {
 		nextY := math.Min(math.Round(y+dy), maxY)
-		c, x := 0, float64(0)
-
+		x = float64(0)
 		for x < maxX {
 			nextX := math.Min(math.Round(x+dx), maxX)
 			if x >= nextX || y >= nextY {
@@ -77,17 +75,19 @@ func (img *Img) Process(w, h int) error {
 				x = nextX
 				continue
 			}
-			point := downsample(&img.src, int(x), int(nextX), int(y), int(nextY))
-			res += fmt.Sprintf("%c", colorToAscii(point))
-			c++
+			processArea(img, int(x), int(nextX), int(y), int(nextY))
 			x = nextX
 		}
 		y = nextY
-		res += fmt.Sprintf(" | %d\n", c)
+		img.asc = append(img.asc, '\n')
 	}
-
-	img.asc = res
 	return nil
+}
+
+func processArea(img *Img, x1 int, x2 int, y1 int, y2 int) {
+	point := downsample(&img.src, x1, x2, y1, y2)
+	ascii := colorToAscii(point)
+	img.asc = append(img.asc, ascii)
 }
 
 func delta(max, steps int) float64 {
@@ -103,7 +103,7 @@ func (img *Img) WriteToFile(filePath string) error {
 		return err
 	}
 
-	n, err := file.Write([]byte(img.asc))
+	n, err := file.Write(img.asc)
 	if err != nil {
 		return err
 	}
@@ -120,10 +120,10 @@ func (img *Img) WriteToFile(filePath string) error {
 
 // Result return ascii representation
 func (img *Img) Result() string {
-	return img.asc
+	return string(img.asc)
 }
 
-// downsample computes new colored point from the image area (x1,y1)-(x2,y2): an average of the original layers (R,G,B,A)
+// downsample computes new colored point from the image area (x1,y1)-(x2,y2): average values for each layer R,G,B,A
 func downsample(img *image.Image, x1, x2, y1, y2 int) color.Color {
 	sumR, sumG, sumB, sumA := uint32(0), uint32(0), uint32(0), uint32(0)
 	count := uint32(0)
@@ -147,7 +147,7 @@ func downsample(img *image.Image, x1, x2, y1, y2 int) color.Color {
 	return res
 }
 
-// colorToAscii converts colored point to ascii character
+// colorToAscii converts colored point to an ascii character
 func colorToAscii(c color.Color) byte {
 	charMin := byte(' ')
 	charMax := byte('~')
