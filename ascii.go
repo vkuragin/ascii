@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"sync"
 	"time"
 
 	_ "image/jpeg"
@@ -42,7 +43,7 @@ func Load(filePath string) (*Img, error) {
 }
 
 // Process converts image from source to ascii representation (w - ascii width, h - ascii height)
-func (img *Img) Process(w, h int) error {
+func (img *Img) Process(w, h int, concurrent bool) error {
 	// measure execution time
 	start := time.Now()
 	defer func() {
@@ -67,14 +68,27 @@ func (img *Img) Process(w, h int) error {
 	log.Printf("steps: w=%d, xSteps=%d, h=%d, ySteps=%d\n", w, xSteps, h, ySteps)
 
 	// process image
+	img.doProcessing(ySteps, xSteps, dy, dx, concurrent)
+
+	return nil
+}
+
+func (img *Img) doProcessing(ySteps, xSteps int, dy, dx float64, concurrent bool) {
+	var wg = new(sync.WaitGroup)
 	img.asc = make([]byte, ySteps*xSteps+ySteps)
 	lastX, lastY, index := 0, 0, 0
+
 	for i := 0; i < ySteps; i++ {
 		y := lastY + int(dy)
 		lastX = 0
 		for j := 0; j < xSteps; j++ {
 			x := lastX + int(dx)
-			processArea(img, index, lastX, x, lastY, y)
+			wg.Add(1)
+			if concurrent {
+				go processArea(img, index, lastX, x, lastY, y, wg)
+			} else {
+				processArea(img, index, lastX, x, lastY, y, wg)
+			}
 			index++
 			lastX = x
 		}
@@ -82,7 +96,8 @@ func (img *Img) Process(w, h int) error {
 		img.asc[index] = 10
 		index++
 	}
-	return nil
+
+	wg.Wait()
 }
 
 func steps(max int, delta float64) int {
@@ -91,10 +106,11 @@ func steps(max int, delta float64) int {
 	return int(math.Ceil(res))
 }
 
-func processArea(img *Img, index, x1, x2, y1, y2 int) {
+func processArea(img *Img, index, x1, x2, y1, y2 int, wg *sync.WaitGroup) {
 	point := downsample(&img.src, x1, x2, y1, y2)
 	ascii := colorToAscii(point)
 	img.asc[index] = ascii
+	wg.Done()
 	//log.Printf("{%d, %d} - {%d, %d} = %q\n", x1, y1, x2, y2, ascii)
 }
 
