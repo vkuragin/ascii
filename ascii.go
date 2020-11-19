@@ -61,39 +61,46 @@ func (img *Img) Process(w, h int) error {
 		h = bounds.Max.Y
 	}
 
-	// process
+	// compute steps
 	dx, dy := delta(bounds.Max.X, w), delta(bounds.Max.Y, h)
-	x, y, maxY, maxX := float64(0), float64(0), float64(bounds.Max.Y), float64(bounds.Max.X)
+	xSteps, ySteps := steps(bounds.Max.X, dx), steps(bounds.Max.Y, dy)
+	log.Printf("steps: w=%d, xSteps=%d, h=%d, ySteps=%d\n", w, xSteps, h, ySteps)
 
-	for y < maxY {
-		nextY := math.Min(math.Round(y+dy), maxY)
-		x = float64(0)
-		for x < maxX {
-			nextX := math.Min(math.Round(x+dx), maxX)
-			if x >= nextX || y >= nextY {
-				log.Printf("empty set, skipping: x=%f, x2=%f, y=%f, y2=%f, maxX=%f, maxY=%f\n", x, nextX, y, nextY, maxX, maxY)
-				x = nextX
-				continue
-			}
-			processArea(img, int(x), int(nextX), int(y), int(nextY))
-			x = nextX
+	// process image
+	img.asc = make([]byte, ySteps*xSteps+ySteps)
+	lastX, lastY, index := 0, 0, 0
+	for i := 0; i < ySteps; i++ {
+		y := lastY + int(dy)
+		lastX = 0
+		for j := 0; j < xSteps; j++ {
+			x := lastX + int(dx)
+			processArea(img, index, lastX, x, lastY, y)
+			index++
+			lastX = x
 		}
-		y = nextY
-		img.asc = append(img.asc, '\n')
+		lastY = y
+		img.asc[index] = 10
+		index++
 	}
 	return nil
 }
 
-func processArea(img *Img, x1 int, x2 int, y1 int, y2 int) {
+func steps(max int, delta float64) int {
+	res := float64(max) / delta
+	log.Printf("steps: %d/%f = %f\n", max, delta, res)
+	return int(math.Ceil(res))
+}
+
+func processArea(img *Img, index, x1, x2, y1, y2 int) {
 	point := downsample(&img.src, x1, x2, y1, y2)
 	ascii := colorToAscii(point)
-	img.asc = append(img.asc, ascii)
+	img.asc[index] = ascii
+	//log.Printf("{%d, %d} - {%d, %d} = %q\n", x1, y1, x2, y2, ascii)
 }
 
 func delta(max, steps int) float64 {
 	res := float64(max) / float64(steps)
-	log.Printf("delta: %d / %d = %f\n", max, steps, res)
-	return res
+	return math.Floor(res)
 }
 
 // WriteToFile writes ascii representation to the output file
@@ -139,10 +146,6 @@ func downsample(img *image.Image, x1, x2, y1, y2 int) color.Color {
 
 	//log.Printf("downsampling is done for {%d,%d}-{%d,%d}, count=%d\n", x1, y1, x2, y2, count)
 	//log.Printf("R=%d, G=%d, B=%d, A=%d -> %+v\n", sumR, sumG, sumB, sumA, res)
-	//
-	//r, g, b, a := res.RGBA()
-	//log.Printf("RGBA() -> %v,%v,%v,%v\n", r, g, b, a)
-	//log.Printf("RGBA -> %v,%v,%v,%v\n", res.R, res.G, res.B, res.A)
 
 	return res
 }
