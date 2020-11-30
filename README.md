@@ -1,11 +1,11 @@
 # ascii
-##Description:
+## Description:
 Transforms source image (png/jpeg) to ascii representation
 
-##Build:
+## Build:
 go install -v ...
 
-##Usage:
+## Usage:
  Example: 
  
  `ascii -in "/tmp/fish.png" -out "/tmp/ascii.txt" -p -w 135 -h 52 -c`   
